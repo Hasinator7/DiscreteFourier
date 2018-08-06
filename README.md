@@ -6,4 +6,4 @@ Run it. You can click in the window as much as you like, when you are done just
 press any key and the program will show you the Discrete Fourier Transform of all
 the points you clicked.
 
-![Screenshot] (Image.png "Screenshot")
+![Screenshot] (Image.png?raw=true "Screenshot")
