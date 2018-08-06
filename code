@@ -1,0 +1,145 @@
+ArrayList<PVector> temp;  //Holds the position of mouseclicks
+PVector[] x_n;  //To be transformed points / samples of a function in the complex plane, same notation as the Wikipedia page about Dicsrete Fourier Transformation
+PVector[] X_k;  //Coefficients after the tranformation in the complex plane
+int N = 0;   //Number of samples, determined by number of mouseclicks
+float[] phases;  //The angel at which each pointer starts
+PVector[] pointers;  //These move and visualize
+double time = 0, timestep = 0.01;  //For animation, lower timestep means slower motion
+PGraphics chunk;  //Canvas to draw the trace on to increase performance
+PVector sum;      //Where all the pointers add up to
+boolean candraw = false;  //True after the point entry phase
+
+void setup()
+{
+  //Basic initialization
+  size(1000,1000); 
+  background(255);    
+  sum = new PVector(0,0);
+  chunk = createGraphics(width, height);
+  temp = new ArrayList<PVector>();
+  frameRate(60);
+ 
+}
+
+void draw()
+{
+  background(255);//100
+   image(chunk,0,0);
+  translate(width/2, height/2);  //Move center of drawing canvas to center of frame
+ 
+  stroke(100,0,0);
+  fill(100,0,0);
+  ellipse(0,0,10,10);  //Draw the center point
+  stroke(0);
+  fill(0);
+  if(candraw)
+  {
+    sum.set(0,0);
+ 
+    for(int i = 0; i < N;i++)
+    {
+      strokeWeight(2);
+      /*Each pointer is associated with a specific integer frequency. The next line draws the pointers 
+      Sorted by frequency, not by length. So if there are 5 pointers and their frequencies are -2,-1,0,1,2
+      the pointer first drawn will have frequency -2 and the last pointer will have frequency 2. This has the effect
+      that the offset-pointer (frequency = 0) is in the middle, which may look akward
+      */
+      pointers[i] = new PVector(cos(2*PI*(i-(N-1)/2)*(float)time/N - phases[i]),sin(2*PI*(i-(N-1)/2)*(float)time/N -phases[i])).mult(X_k[i].mag());
+      line(sum.x,sum.y,sum.x+pointers[i].x, sum.y+pointers[i].y);
+      sum.add(pointers[i]);  
+    }
+  time += timestep;
+  for(int i = 0; i < N; i++)
+  {
+   ellipse(x_n[i].x, x_n[i].y,10,10);  //Draw where the mouse has been clicked
+  }
+  //Draw the trace onto the canvas
+   chunk.beginDraw();
+   chunk.strokeWeight(4);
+   chunk.stroke(255,100,100);  //200,200,0
+   chunk.translate(width/2, height/2);
+   chunk.point(sum.x, sum.y);
+   chunk.endDraw();
+  }
+  else
+  {
+    for (PVector point:temp)
+    {
+      ellipse(point.x, point.y,10,10);  //Draw where the mouse has been
+    }
+  }
+}
+//Computes the Discrete Fourier-Transformation of the sampled points
+void computeFourier()
+{
+  PVector sum = new PVector(0,0);
+  for(int k= -(N-1)/2; k < (N+2)/2;k++)
+  {
+    for(int n = 0; n < N;n++)
+    {
+      sum.add(cProduct(x_n[n], new PVector(cos(2*PI*k*n/N), -sin(2*PI*k*n/N))));
+    }
+    
+    X_k[k+(N-1)/2] = sum.copy().mult(1f/N);
+    sum.set(0,0);
+  }
+  for(int i = 0; i < N;i++)
+  {
+    try
+    {
+      //To find the right phase offset, you need to discern some cases, since atan is bit weird
+      if(X_k[i].x == 0)
+      {
+        phases[i] = PI/2;
+      }
+      else if(X_k[i].y >= 0 && X_k[i].x<0)
+      {
+       phases[i] = PI-atan(X_k[i].y/X_k[i].x);
+      }
+      else if(X_k[i].y < 0 && X_k[i].x<0)
+      {
+       phases[i] = -PI-atan(X_k[i].y/X_k[i].x);
+      }
+      else
+      {
+        phases[i] = -atan(X_k[i].y/X_k[i].x);
+      }
+    }
+  catch(NullPointerException e){println("Nullpointer at index: " + i);}
+  }
+}
+
+//*
+/*Multiplies two complex numbers together and returns it as PVector
+*/
+PVector cProduct(PVector v, PVector w)
+{
+  if(v == null || w == null)
+  {
+    return null;  //Should not happen, so no error handling anywhere
+  }
+  else
+  {
+    return new PVector(v.x*w.x - v.y*w.y, v.y*w.x + v.x*w.y); 
+  }
+}
+
+void mouseClicked()
+{
+  temp.add(new PVector(mouseX-width/2, mouseY-height/2));
+}
+
+void keyPressed()
+{
+  candraw = true;
+  N = temp.size();
+  x_n = new PVector[N];
+  X_k = new PVector[N];
+  phases = new float[N];
+  pointers = new PVector[N];
+  for(int i =0; i < x_n.length; i++)
+  {
+    x_n[i] = temp.get(i);
+  }
+  computeFourier();
+}
